@@ -6,8 +6,6 @@ from torch import nn
 import numpy as np
 import torch
 
-from matplotlib.ticker import LogLocator, ScalarFormatter
-
 def roundrobin(*iterables):
     "Visit input iterables in a cycle until each is exhausted."
     # Recipe credited to George Sakkis
@@ -43,7 +41,7 @@ class NQS(nn.Module):
 device = torch.device('cuda')
 
 n_fermions = 2
-v = -5
+v = -20
 sigma = 0.5
 gaussian_factor = v / np.sqrt(2 * np.pi) / sigma
 n_hidden = [32, 16, 8]
@@ -77,9 +75,10 @@ def loss_fn():
     dpsi2_dx2 = [d.pow(2) for d in dpsi_dx]
     kinetic = torch.tensordot(sum(dpsi2_dx2), integration_weights) / n / 2
 
-    #interaction = gaussian_factor * torch.tensordot(torch.exp(-(fermions_x[0] - fermions_x[1]).pow(2) / (2*sigma**2)) * psi2, integration_weights) / n / 2
-    directed2 = (dpsi_dx[0] - dpsi_dx[1]).pow(2)
-    interaction = gaussian_factor * torch.tensordot(torch.exp(-(fermions_x[0] - fermions_x[1]).pow(2) / (2*sigma**2)) * directed2, integration_weights) / n / 2
+    interaction = gaussian_factor * torch.tensordot(torch.exp(-(fermions_x[0] - fermions_x[1]).pow(2) / (2*sigma**2)) * psi2, integration_weights) / n / 2 # Gaussian interaction
+    #directed2 = (dpsi_dx[0] - dpsi_dx[1]).pow(2)
+    #interaction = gaussian_factor * torch.tensordot(torch.exp(-(fermions_x[0] - fermions_x[1]).pow(2) / (2*sigma**2)) * directed2, integration_weights) / n / 2 # Directed derivative gaussian interaction
+    #interaction = torch.zeros(1, device=device) #No interaction
 
     # Weighing the symmetry constraint too heavily causes training to become excruciatingly slow
     psi_t = neural_state(train_mesh.flip(-1)).squeeze()
@@ -146,10 +145,11 @@ for i in tqdm(range(epochs), desc="Training the NQS..."):
     loss.backward()
     optimizer.step()
 
-    if i % 200 == 0:
-        update_plot(psi.clone().detach().cpu().numpy(), losses, potentials, kinetics, interactions)
+    #if i % 200 == 0:
+    #    update_plot(psi.clone().detach().cpu().numpy(), losses, potentials, kinetics, interactions)
     #plt.pause(0.01)
 
 #print(losses)
-print(f'V={v}, sigma={sigma:.2f}, Energy: {energy}')
+update_plot(psi.clone().detach().cpu().numpy(), losses, potentials, kinetics, interactions)
+print(f'V={v}, sigma={sigma:.2f}, Energy: {energy.item():.4f} (V: {pot.item():.4f}, T: {kin.item():.4f}, I: {int.item():.4f})')
 input()
